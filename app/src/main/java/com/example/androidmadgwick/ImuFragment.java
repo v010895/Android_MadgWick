@@ -15,11 +15,18 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Looper;
+import com.example.androidmadgwick.nativefunction.IMUInterface;
 public class ImuFragment extends Fragment {
   TextView yawText;
   TextView pitchText;
   TextView rollText;
   ReadImuThread mReadImuThread;
+  boolean getGyro;
+  boolean getAcc;
+  float[] imuData; //gx gy gz ax ay az;
+  float[] gyroData;
+  float[] accData;
+  long timestamp;
   @Override
   public void onCreate(@Nullable Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -37,7 +44,13 @@ public class ImuFragment extends Fragment {
     yawText = (TextView)view.findViewById(R.id.yaw);
     pitchText = (TextView)view.findViewById(R.id.pitch);
     rollText = (TextView)view.findViewById(R.id.roll);
+    getAcc = false;
+    getGyro = false;
+    gyroData = new float[3];
+    accData = new float[3];
+    imuData  = new float[6];
     mReadImuThread = new ReadImuThread((SensorManager)getActivity().getSystemService(getActivity().SENSOR_SERVICE));
+    IMUInterface.initMadgwick();
   }
 
   @Override
@@ -64,13 +77,28 @@ public class ImuFragment extends Fragment {
       mSensorEventListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
-          if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+          if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER && !getAcc)
           {
-              Log.i("imuData", String.format("Acc(%10f, %10f, %10f)",event.values[0],event.values[1],event.values[2]));
+              accData[0] = event.values[0];
+              accData[1] = event.values[1];
+              accData[2] = event.values[2];
+              timestamp = event.timestamp;
+              getAcc = true;
+              //Log.i("imuData", String.format("Acc(%10f, %10f, %10f)",event.values[0],event.values[1],event.values[2]));
           }
-          else if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE)
+          else if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE && !getGyro)
           {
-            Log.i("imuData", String.format("Gyro(%10f, %10f, %10f)",event.values[0],event.values[1],event.values[2]));
+              gyroData[0] = event.values[0];
+              gyroData[1] = event.values[1];
+              gyroData[2] = event.values[2];
+              getGyro = true;
+            //Log.i("imuData", String.format("Gyro(%10f, %10f, %10f)",event.values[0],event.values[1],event.values[2]));
+          }
+          else if(getAcc && getGyro)
+          {
+              IMUInterface.updateIMU(gyroData,accData,timestamp);
+              getAcc=false;
+              getGyro=false;
           }
         }
 
